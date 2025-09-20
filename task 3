@@ -1,0 +1,38 @@
+import pandas as pd
+import numpy as np
+
+# Sample user-item ratings matrix
+ratings_dict = {
+    'user_id': [1, 1, 1, 2, 2, 3, 3, 3, 4],
+    'movie_id': [1, 2, 3, 1, 3, 2, 3, 4, 4],
+    'rating': [5, 3, 4, 4, 5, 2, 5, 4, 5]
+}
+
+ratings = pd.DataFrame(ratings_dict)
+
+# Create user-item matrix
+user_item_matrix = ratings.pivot_table(index='user_id', columns='movie_id', values='rating').fillna(0)
+
+# Function to compute cosine similarity manually
+def cosine_similarity_manual(matrix):
+    norm = np.linalg.norm(matrix, axis=1, keepdims=True)
+    sim = matrix.dot(matrix.T) / (norm.dot(norm.T) + 1e-8)  # avoid division by zero
+    return sim
+
+# Compute user similarity
+user_sim = cosine_similarity_manual(user_item_matrix.values)
+user_sim_df = pd.DataFrame(user_sim, index=user_item_matrix.index, columns=user_item_matrix.index)
+
+# Function to recommend movies for a user based on similar users
+def recommend_movies(user_id, user_item_matrix, user_sim_df, n_recommendations=3):
+    sim_scores = user_sim_df[user_id]
+    weighted_ratings = user_item_matrix.T.dot(sim_scores) / sim_scores.sum()
+    user_rated = user_item_matrix.loc[user_id]
+    unrated_movies = user_rated[user_rated == 0].index
+    recommendations = weighted_ratings[unrated_movies].sort_values(ascending=False)
+    return recommendations.head(n_recommendations)
+
+# Example: Recommend movies for user 1
+recommended = recommend_movies(1, user_item_matrix, user_sim_df)
+print("Recommended movies for User 1 (movie IDs):")
+print(recommended.index.tolist())
